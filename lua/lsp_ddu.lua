@@ -30,15 +30,17 @@ function M.references()
   return locations
 end
 
-function M.document_symbol()
-  local params = { textDocument = lsp.util.make_text_document_params() }
-  local raw_result = lsp.buf_request_sync(0, 'textDocument/documentSymbol', params, 1000)
-  local client_id = get_available_client('document_symbol')
-  if client_id == 0 or raw_result == nil then
+function M.document_symbol(bufnr)
+  local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
+  local res = vim.lsp.buf_request_sync(bufnr, 'textDocument/documentSymbol', params, 1000)
+  if res == nil then
     return nil
   end
-  local result = lsp.util.symbols_to_items(raw_result[client_id].result, 0)
-  return result
+  local all = {}
+  for _, v in ipairs(res) do
+    table.insert(all, v)
+  end
+  return all
 end
 
 function M.workspace_symbol(query)
