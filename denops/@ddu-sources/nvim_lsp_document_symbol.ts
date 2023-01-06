@@ -9,9 +9,12 @@ import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.3.2/file.ts";
 import {
   DocumentSymbol,
   SymbolInformation,
+  SymbolKind,
 } from "npm:vscode-languageserver-types@3.17.2";
 
-type Params = Record<never, never>;
+type Params = {
+  kindLabels: Record<string, string>;
+};
 
 type Result = { result: DocumentSymbol[] | SymbolInformation[] | undefined };
 
@@ -23,10 +26,12 @@ type Symbols = Record<string, {
 export class Source extends BaseSource<Params> {
   kind = "file";
   cache: Symbols = {};
+  labels = Object.keys(SymbolKind);
 
   private async makeCache(
     denops: Denops,
     bufNr: number,
+    params: Params,
   ) {
     const results = await denops.call(
       "luaeval",
@@ -34,13 +39,14 @@ export class Source extends BaseSource<Params> {
       { arg: bufNr },
     ) as Result[] | null;
     if (!results) return;
-    this.cache = this.makeSymbolTree(bufNr, "", results);
+    this.cache = this.makeSymbolTree(bufNr, "", results, params);
   }
 
   private makeSymbolTree(
     bufNr: number,
     parent: string,
     results: Result[] | undefined,
+    params: Params,
   ): Symbols {
     if (!results) {
       return {};
@@ -50,10 +56,16 @@ export class Source extends BaseSource<Params> {
       if (!res.result) continue;
       for (const item of res.result) {
         const path = parent + (parent ? "/" : "") + item.name;
+        const kindName = this.labels[item.kind - 1];
+        let kindLabel = kindName;
+        if (kindName in params.kindLabels) {
+          kindLabel = params.kindLabels[kindName];
+        }
+        const word = `${kindLabel} ${item.name}`;
         if ("range" in item) {
           symbols[item.name] = {
             item: {
-              word: item.name,
+              word,
               action: {
                 bufNr,
                 lineNr: item.range.start.line + 1,
@@ -64,12 +76,12 @@ export class Source extends BaseSource<Params> {
             },
             children: this.makeSymbolTree(bufNr, path, [{
               result: item.children,
-            }]),
+            }], params),
           };
         } else {
           symbols[item.name] = {
             item: {
-              word: item.name,
+              word,
               action: {
                 bufNr,
                 lineNr: item.location.range.start.line + 1,
@@ -98,7 +110,7 @@ export class Source extends BaseSource<Params> {
       const path = args.sourceOptions.path;
       const bufNr = args.context.bufNr;
       if (!path) {
-        await this.makeCache(args.denops, bufNr);
+        await this.makeCache(args.denops, bufNr, args.sourceParams);
       }
       let current = this.cache;
       for (const name of path.split("/")) {
@@ -106,7 +118,7 @@ export class Source extends BaseSource<Params> {
           current = current[name].children;
         }
       }
-      const items = Object.values(current).map((v) => v.item)
+      const items = Object.values(current).map((v) => v.item);
       controller.enqueue(items);
       controller.close();
       return;
@@ -114,8 +126,6 @@ export class Source extends BaseSource<Params> {
     return new ReadableStream({ start });
   }
   params(): Params {
-    return {
-      path: "",
-    };
+    return { kindLabels: {} };
   }
 }
