@@ -31,12 +31,13 @@ export class Source extends BaseSource<Params> {
   private async makeCache(
     denops: Denops,
     bufNr: number,
+    winId: number,
     params: Params,
   ) {
     const results = await denops.call(
       "luaeval",
-      "require'lsp_ddu'.document_symbol(_A.arg)",
-      { arg: bufNr },
+      "require'lsp_ddu'.document_symbol(_A.bufNr, _A.winId)",
+      { bufNr, winId },
     ) as Result[] | null;
     if (!results) return;
     this.cache = this.makeSymbolTree(bufNr, "", results, params);
@@ -110,7 +111,12 @@ export class Source extends BaseSource<Params> {
       const path = args.sourceOptions.path;
       const bufNr = args.context.bufNr;
       if (!path) {
-        await this.makeCache(args.denops, bufNr, args.sourceParams);
+        await this.makeCache(
+          args.denops,
+          bufNr,
+          args.context.winId,
+          args.sourceParams,
+        );
       }
       let current = this.cache;
       for (const name of path.split("/")) {

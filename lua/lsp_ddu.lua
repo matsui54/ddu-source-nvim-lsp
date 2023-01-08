@@ -30,14 +30,14 @@ function M.references()
   return locations
 end
 
-function M.document_symbol(bufnr)
-  local params = { textDocument = vim.lsp.util.make_text_document_params(bufnr) }
-  local res = vim.lsp.buf_request_sync(bufnr, 'textDocument/documentSymbol', params, 1000)
+function M.document_symbol(bufnr, winid)
+  local params = vim.lsp.util.make_position_params(winid)
+  local res, reason = vim.lsp.buf_request_sync(bufnr, 'textDocument/documentSymbol', params, 1000)
   if res == nil then
     return nil
   end
   local all = {}
-  for _, v in ipairs(res) do
+  for _, v in pairs(res) do
     table.insert(all, v)
   end
   return all
