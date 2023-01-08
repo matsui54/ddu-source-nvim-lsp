@@ -124,7 +124,11 @@ export class Source extends BaseSource<Params> {
           current = current[name].children;
         }
       }
-      const items = Object.values(current).map((v) => v.item);
+      const items = Object.values(current).map((v) => v.item).sort((a, b) => {
+        const l0 = a.action?.lineNr ?? 0;
+        const l1 = b.action?.lineNr ?? 0;
+        return l0 - l1;
+      });
       controller.enqueue(items);
       controller.close();
       return;
