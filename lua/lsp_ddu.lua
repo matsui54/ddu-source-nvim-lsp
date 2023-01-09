@@ -43,15 +43,19 @@ function M.document_symbol(bufnr, winid)
   return all
 end
 
-function M.workspace_symbol(query)
-  local params = { workspace = lsp.util.make_workspace_params(), query = query }
-  local raw_result = lsp.buf_request_sync(0, 'workspace/symbol', params, 1000)
-  local client_id = get_available_client('workspace_symbol')
-  if client_id == 0 or raw_result == nil then
+function M.workspace_symbol(bufnr, query)
+  -- local params = { workspace = lsp.util.make_workspace_params(), query = query }
+  local params = { query = query }
+  local res, reason = lsp.buf_request_sync(bufnr, 'workspace/symbol', params, 1000)
+  -- local client_id = get_available_client('workspace_symbol')
+  if res == nil then
     return nil
   end
-  local result = lsp.util.symbols_to_items(raw_result[client_id].result, 0)
-  return result
+  local all = {}
+  for _, v in pairs(res) do
+    table.insert(all, v)
+  end
+  return all
 end
 
 function M.diagnostic_buffer()
