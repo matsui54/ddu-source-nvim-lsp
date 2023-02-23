@@ -12,16 +12,18 @@ import {
   SymbolKind,
 } from "npm:vscode-languageserver-types@3.17.2";
 
-type Params = {
-  kindLabels: Record<string, string>;
-};
-
 type Result = { result: DocumentSymbol[] | SymbolInformation[] | undefined };
 
 type Symbols = Record<string, {
-  item: Item<ActionData>;
+  item: Item<ItemData>;
   children: Symbols;
 }>;
+
+type Params = {};
+
+export type ItemData = ActionData & {
+  kind: number;
+};
 
 export class Source extends BaseSource<Params> {
   kind = "file";
@@ -57,20 +59,15 @@ export class Source extends BaseSource<Params> {
       if (!res.result) continue;
       for (const item of res.result) {
         const path = parent + (parent ? "/" : "") + item.name;
-        const kindName = this.labels[item.kind - 1];
-        let kindLabel = kindName;
-        if (kindName in params.kindLabels) {
-          kindLabel = params.kindLabels[kindName];
-        }
-        const word = `${kindLabel} ${item.name}`;
         if ("range" in item) {
           symbols[item.name] = {
             item: {
-              word,
+              word: item.name,
               action: {
                 bufNr,
                 lineNr: item.range.start.line + 1,
                 col: item.range.start.character + 1,
+                kind: item.kind,
               },
               isTree: item.children != undefined,
               treePath: path,
@@ -82,11 +79,12 @@ export class Source extends BaseSource<Params> {
         } else {
           symbols[item.name] = {
             item: {
-              word,
+              word: item.name,
               action: {
                 bufNr,
                 lineNr: item.location.range.start.line + 1,
                 col: item.location.range.start.character + 1,
+                kind: item.kind,
               },
               isTree: false,
               treePath: path,
@@ -104,9 +102,9 @@ export class Source extends BaseSource<Params> {
     context: Context;
     sourceParams: Params;
     sourceOptions: SourceOptions;
-  }): ReadableStream<Item<ActionData>[]> {
+  }): ReadableStream<Item<ItemData>[]> {
     const start = async (
-      controller: ReadableStreamDefaultController<Item<ActionData>[]>,
+      controller: ReadableStreamDefaultController<Item<ItemData>[]>,
     ) => {
       const path = args.sourceOptions.path;
       const bufNr = args.context.bufNr;
